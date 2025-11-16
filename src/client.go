@@ -32,19 +32,23 @@ func (c *Client) Cleanup() {
 	}
 
 	room := c.room
-	room.mu.Lock()
-	defer room.mu.Unlock()
+	roomCode := room.code
+	partner := room.other(c)
+
 	roomsMu.Lock()
-	if existing, ok := rooms[room.code]; ok && existing == room {
-		delete(rooms, room.code)
+	if existing, ok := rooms[roomCode]; ok && existing == room {
+		delete(rooms, roomCode)
 	}
 	roomsMu.Unlock()
 
-	if other := room.other(c); other != nil {
-		other.WriteJson(map[string]any{
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	if partner != nil {
+		partner.WriteJson(map[string]any{
 			"type": "partner_disconnected",
 		})
-		other.room = nil
+		partner.room = nil
 	}
 	c.room = nil
 	c.code = ""
