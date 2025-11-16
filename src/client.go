@@ -66,7 +66,7 @@ func (Player *Client) ReadLoop() {
 			continue
 		}
 		var obj map[string]any
-		if err := json.Unmarshal(msg, &obj); err == nil {
+		if err := json.Unmarshal(msg, &obj); err != nil {
 			fmt.Println("Error parsing json")
 			Player.WriteJson(map[string]any{
 				"type":   "parse_error",
