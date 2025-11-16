@@ -1,9 +1,13 @@
 package main
 
+import "sync"
+
 type Room struct {
 	code    string
 	Player1 *Client
 	Player2 *Client
+
+	mu sync.Mutex
 }
 
 func (r *Room) other(c *Client) *Client {

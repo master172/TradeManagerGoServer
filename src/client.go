@@ -32,8 +32,12 @@ func (c *Client) Cleanup() {
 	}
 
 	room := c.room
+	room.mu.Lock()
+	defer room.mu.Unlock()
 	roomsMu.Lock()
-	delete(rooms, room.code)
+	if existing, ok := rooms[room.code]; ok && existing == room {
+		delete(rooms, room.code)
+	}
 	roomsMu.Unlock()
 
 	if other := room.other(c); other != nil {
@@ -54,6 +58,7 @@ func (Player *Client) ReadLoop() {
 	for {
 		mt, msg, err := Player.conn.ReadMessage()
 		if err != nil {
+			fmt.Println("Read error:", err)
 			return
 		}
 
@@ -61,13 +66,20 @@ func (Player *Client) ReadLoop() {
 			var obj map[string]any
 			if err := json.Unmarshal(msg, &obj); err == nil {
 				fmt.Println("Error parsing json")
+				Player.WriteJson(map[string]any{
+					"type":   "parse_error",
+					"detail": "invalid_json",
+				})
 				continue
 			}
 		}
 
 		if Player.room != nil {
-			if other := Player.room.other(Player); other != nil {
-				other.WriteJson(msg)
+			room := Player.room
+			room.mu.Lock()
+			other := room.other(Player)
+			if other != nil {
+				other.Write(mt, msg)
 			} else {
 				Player.WriteJson(map[string]any{
 					"type": "no_partner",

@@ -10,7 +10,18 @@ var (
 )
 
 func CreateRoom(Player *Client) {
-	code := GenCode()
+	var code string
+	for {
+		code = GenCode()
+
+		roomsMu.Lock()
+		_, exists := rooms[code]
+		roomsMu.Unlock()
+
+		if !exists {
+			break
+		}
+	}
 	room := &Room{
 		code:    code,
 		Player1: Player,
@@ -32,17 +43,25 @@ func CreateRoom(Player *Client) {
 func JoinRoom(Player *Client, code string) {
 	roomsMu.Lock()
 	room, ok := rooms[code]
+	roomsMu.Unlock()
 
 	if !ok {
 		Player.WriteJson(map[string]any{
 			"type":   "join_failed",
 			"reason": "Room not found",
 		})
-	} else if room.Player2 != nil {
+		return
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	if room.Player2 != nil {
 		Player.WriteJson(map[string]any{
 			"type":   "join_failed",
 			"reason": "room_full",
 		})
+		return
 	}
 
 	room.Player2 = Player
@@ -51,7 +70,21 @@ func JoinRoom(Player *Client, code string) {
 
 	room.Player1.WriteJson(map[string]any{
 		"type": "paired",
-		"code": "code",
+		"code": code,
+	})
+	room.Player2.WriteJson(map[string]any{
+		"type": "paired",
+		"code": code,
 	})
 
+}
+
+func GetActiveRoomCodes() []string {
+	roomsMu.Lock()
+	defer roomsMu.Unlock()
+	codes := make([]string, 0, len(rooms))
+	for k := range rooms {
+		codes = append(codes, k)
+	}
+	return codes
 }
