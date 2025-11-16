@@ -19,14 +19,6 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Eroor upgrading", err)
 		return
 	}
-	defer conn.Close()
-
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Println("Error reading message", err)
-			break
-		}
-		fmt.Printf("Received: %s\\n", message)
-	}
+	client := &Client{conn: conn}
+	go client.ReadLoop()
 }
