@@ -77,7 +77,7 @@ func (Player *Client) ReadLoop() {
 
 		msg_type, ok := obj["type"].(string)
 		if !ok {
-			fmt.Println("Jsom missing type")
+			fmt.Println("Json missing type")
 		}
 
 		switch msg_type {
