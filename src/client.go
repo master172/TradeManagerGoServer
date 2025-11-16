@@ -62,33 +62,45 @@ func (Player *Client) ReadLoop() {
 			return
 		}
 
-		if mt == websocket.TextMessage {
-			var obj map[string]any
-			if err := json.Unmarshal(msg, &obj); err == nil {
-				fmt.Println("Error parsing json")
-				Player.WriteJson(map[string]any{
-					"type":   "parse_error",
-					"detail": "invalid_json",
-				})
-				continue
-			}
+		if mt != websocket.TextMessage {
+			continue
+		}
+		var obj map[string]any
+		if err := json.Unmarshal(msg, &obj); err == nil {
+			fmt.Println("Error parsing json")
+			Player.WriteJson(map[string]any{
+				"type":   "parse_error",
+				"detail": "invalid_json",
+			})
+			continue
 		}
 
-		if Player.room != nil {
-			room := Player.room
-			room.mu.Lock()
-			other := room.other(Player)
-			if other != nil {
-				other.Write(mt, msg)
-			} else {
-				Player.WriteJson(map[string]any{
-					"type": "no_partner",
-				})
-			}
-		} else {
-			Player.WriteJson(map[string]any{
-				"type": "not_in_room",
-			})
+		msg_type, ok := obj["type"].(string)
+		if !ok {
+			fmt.Println("Jsom missing type")
 		}
+
+		switch msg_type {
+		case "create_room":
+			CreateRoom(Player)
+
+		case "join_room":
+			code, _ := obj["code"].(string)
+			JoinRoom(Player, code)
+		case "trade_message":
+			if Player.room == nil {
+				Player.WriteJson(map[string]any{"type": "not_in_room"})
+				continue
+			}
+
+			other := Player.room.other(Player)
+			if other == nil {
+				Player.WriteJson(map[string]any{"type": "no_partner"})
+				continue
+			}
+			other.WriteJson(obj)
+
+		}
+
 	}
 }
